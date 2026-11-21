@@ -3,14 +3,10 @@
 *.xingchi.bak
 __pycache__/
 *.pyc
-
-# Local agent/workspace metadata; never distribute it with the installer.
 /.claude/
 /.freebuff/
 /.codex/
 /.xingchi/
-
-# Local runtime artifacts.
 *.log
 *.db
 *.sqlite
