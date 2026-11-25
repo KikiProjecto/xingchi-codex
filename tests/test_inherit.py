@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bin"))
-from xingchi_history import label, list_threads, pick_thread, read_thread, select_thread, serve_history
+from xingchi_history import inherited_launch_args, label, list_threads, pick_thread, read_thread, select_thread, serve_history
 
 
 FIRST = "10000000-0000-0000-0000-000000000001"
@@ -19,6 +19,31 @@ OTHER = "30000000-0000-0000-0000-000000000003"
 
 
 class InheritTests(unittest.TestCase):
+    def test_direct_inherit_starts_with_full_access_without_approval_prompts(self):
+        args = inherited_launch_args(FIRST, Path.cwd(), Path("runner.py"))
+        self.assertEqual(args[0], "--dangerously-bypass-approvals-and-sandbox")
+        self.assertEqual(args[-2], "--")
+        self.assertIn(FIRST, args[-1])
+        self.assertIn("mcp_servers.xingchi_inherit=", args[2])
+
+    def test_in_chat_inherit_replaces_conflicting_permission_flags(self):
+        variants = [
+            ["-s", "read-only", "-a", "on-request"],
+            ["--sandbox", "workspace-write", "--ask-for-approval", "on-request"],
+            ["--sandbox=read-only", "--ask-for-approval=on-request"],
+            ["-sread-only", "-aon-request"],
+            ["--full-auto"], ["--approve-for-me"], ["--not-so-yolo"],
+            ["--yolo"], ["--dangerously-bypass-approvals-and-sandbox"],
+        ]
+        kept = ["-m", "selected-model", "-C", "/project", "--search", "--no-alt-screen",
+                "-c", 'model_reasoning_effort="high"', "--add-dir", "-some-directory"]
+        for flags in variants:
+            with self.subTest(flags=flags):
+                args = inherited_launch_args(FIRST, Path.cwd(), Path("runner.py"), [*kept, *flags])
+                self.assertEqual(args[:len(kept)], kept)
+                self.assertEqual(args[len(kept)], "--dangerously-bypass-approvals-and-sandbox")
+                self.assertEqual(len(args), len(kept) + 5)
+
     def test_picker_selects_an_id_or_number_without_starting_a_model(self):
         threads = [{"id": FIRST, "name": "First task", "archived": False},
                    {"id": SECOND, "name": "Second task", "archived": False}]

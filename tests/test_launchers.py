@@ -281,6 +281,8 @@ class LauncherTests(unittest.TestCase):
             self.assertIn("https://api.xingchiapi.com/v1", text)
             self.assertIn("xingchi-codex", text)
             self.assertIn("integrations.py", text)
+            self.assertIn('/inherit automatically uses Full access and approval policy never', text)
+            self.assertIn('Other chats keep their existing permissions.', text)
             self.assertIn("XINGCHI_SKIP_INTEGRATIONS", text)
             for leftover in ("litellm", "4010", "bridge.key", "bridge-up"):
                 self.assertNotIn(leftover, text.lower())
@@ -380,6 +382,9 @@ class LauncherTests(unittest.TestCase):
             for name in payloads:
                 self.assertEqual((target / name).read_bytes(), (ROOT / "bin" / name).read_bytes(),
                                  f"The installer left an outdated {name}")
+                self.assertEqual((home / ".xingchi/bin" / name).read_bytes(), (target / name).read_bytes(),
+                                 f"The Xingchi runtime copy left an outdated {name}")
+            self.assertEqual((home / ".xingchi/bin/xingchi-codex").stat().st_mode & 0o777, 0o755)
 
     def test_installer_upgrades_old_cli_and_preserves_custom_home_selection(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -407,13 +412,15 @@ class LauncherTests(unittest.TestCase):
                 ["sh", str(ROOT / "install.sh"), "--yes"],
                 env={"HOME": str(home), "PATH": str(fakepath) + os.pathsep + os.environ.get("PATH", "/usr/bin:/bin"),
                      "CODEX_HOME": str(codex_home), "XINGCHI_HOME": str(xingchi_home),
-                     "XINGCHI_BIN": str(home / "bin"), "XINGCHI_API_KEY": "test-key",
+                     "XINGCHI_BIN": str(xingchi_home / "bin") + "/", "XINGCHI_API_KEY": "test-key",
                      "XINGCHI_UPSTREAM": "http://127.0.0.1:9/v1", "SHELL": "/bin/sh",
                      "XINGCHI_TEST_NPM_LOG": str(npm_log), "XINGCHI_TEST_CODEX": str(codex)},
                 capture_output=True, text=True, timeout=30,
             )
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             self.assertEqual(npm_log.read_text().strip(), "install -g @openai/codex")
+            self.assertEqual((xingchi_home / "bin/xingchi_history.py").read_bytes(),
+                             (ROOT / "bin/xingchi_history.py").read_bytes())
             settings = tomllib.loads(config.read_text())
             self.assertEqual(settings["model"], "gpt-6.1-terra")
             self.assertEqual(settings["model_reasoning_effort"], "max")

@@ -439,8 +439,11 @@ class SmokeTests(unittest.TestCase):
         )
         self.assertEqual(installed.returncode, 0, installed.stderr + installed.stdout)
         launcher = [str(self.home / ".local/bin/xingchi-codex")]
-        with (self.home / ".codex/config.toml").open("a", encoding="utf-8") as config:
-            config.write('\n[projects.' + json.dumps(str(self.home)) + ']\ntrust_level = "trusted"\n')
+        # Inherit must start unattended even in an untrusted project whose
+        # configured permissions are restrictive.
+        config_path = self.home / ".codex/config.toml"
+        config_path.write_text('sandbox_mode = "read-only"\napproval_policy = "on-request"\n'
+                               + config_path.read_text(encoding="utf-8"), encoding="utf-8")
 
         def run(*args, cwd=self.home):
             return subprocess.run([*launcher, *args], env=self.env, cwd=cwd,
@@ -512,6 +515,8 @@ class SmokeTests(unittest.TestCase):
         self.assertGreaterEqual(len(posts), 2, [tool.get("name", tool.get("type")) for tool in tools])
         self.assertNotEqual(posts[0]["headers"]["session-id"], source_session)
         initial_input = json.dumps(json.loads(posts[0]["body"])["input"])
+        self.assertIn("danger-full-access", initial_input)
+        self.assertIn("Approval policy is currently never", initial_input)
         self.assertIn(f"--inherit-history {source}", initial_input)
         self.assertNotIn("SOURCE_MARKER_997", initial_input)
         self.assertNotIn("Smoke reply.", initial_input)
@@ -557,7 +562,8 @@ class SmokeTests(unittest.TestCase):
         master, slave = pty.openpty()
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 50, 160, 0, 0))
         try:
-            process = subprocess.Popen([*launcher, "--no-alt-screen", "-C", self.home.name,
+            process = subprocess.Popen([*launcher, "--no-alt-screen", "-s", "read-only",
+                                        "-a", "on-request", "-C", self.home.name,
                                         "-c", "model_reasoning_effort=high", "resume", source], cwd=self.home.parent,
                                        env={**self.env, "TERM": "xterm-256color"},
                                        stdin=slave, stdout=slave, stderr=slave, start_new_session=True)
@@ -654,6 +660,9 @@ class SmokeTests(unittest.TestCase):
         self.assertEqual(json.loads(posts[0]["body"])["reasoning"]["effort"], "high")
         self.assertNotIn("IN_CHAT_HISTORY_MARKER", json.dumps(json.loads(posts[0]["body"])["input"]))
         self.assertIn("IN_CHAT_HISTORY_MARKER", posts[1]["body"].decode())
+        inherited_input = json.dumps(json.loads(posts[0]["body"])["input"])
+        self.assertIn("danger-full-access", inherited_input)
+        self.assertIn("Approval policy is currently never", inherited_input)
 
     def test_codex_sends_selected_model_and_reasoning_effort(self):
         self.configure()

@@ -51,6 +51,9 @@ Continue saved work with /inherit (recommended for session limits):
   2. Type /inherit and press Enter to open the session list.
   3. Use Up/Down or Page Up/Down; type a title or ID to filter. Esc cancels.
   4. Press Enter on a session; a fresh chat automatically reads saved history and continues the work.
+/inherit automatically uses Full access and approval policy never (no command approval prompts).
+Inherited commands run without sandboxing. Other chats keep their existing permissions.
+Runtime files are also refreshed in $XDIR/bin.
 Why /inherit over --continue: a fresh conversation reads saved history on demand.
 --continue forks the saved conversation; copied history can still hit a turn limit.
 If the old chat is closed: xingchi-codex /inherit (Astra: xingchi-codex --astra /inherit).
@@ -217,6 +220,17 @@ cp "$SRC/bin/xingchi_conpty.py" "$BIN/xingchi_conpty.py"
 chmod 755 "$BIN/xingchi-codex" "$BIN/xingchi" "$BIN/xingchi-codex-runner.py"
 echo "  installed $BIN/xingchi-codex"
 
+# Keep a usable runtime copy with the Xingchi installation as well as on PATH.
+# Copy the complete helper set together so /inherit never uses stale modules.
+mkdir -p "$XDIR/bin"
+if [ "$(CDPATH= cd -- "$XDIR/bin" && pwd -P)" != "$(CDPATH= cd -- "$BIN" && pwd -P)" ]; then
+  for runtime in xingchi-codex xingchi xingchi-codex-runner.py xingchi_history.py xingchi_tui.py xingchi_conpty.py; do
+    cp "$BIN/$runtime" "$XDIR/bin/$runtime"
+  done
+fi
+chmod 755 "$XDIR/bin/xingchi-codex" "$XDIR/bin/xingchi" "$XDIR/bin/xingchi-codex-runner.py"
+echo "  runtime copy: $XDIR/bin"
+
 if [ "${XINGCHI_SKIP_INTEGRATIONS:-}" != 1 ]; then
   XINGCHI_HOME=$XDIR python3 "$SRC/lib/integrations.py" || die "skill and MCP configuration failed"
   echo "  unified skills: $SHARED_SKILLS"
@@ -288,6 +302,8 @@ echo '  1. Launch xingchi-codex in the same project directory.'
 echo '  2. Type /inherit and press Enter to open the session list.'
 echo '  3. Use Up/Down or Page Up/Down; type a title or ID to filter. Esc cancels.'
 echo '  4. Press Enter on a session; a fresh chat automatically reads saved history and continues the work.'
+echo '/inherit automatically uses Full access and approval policy never (no command approval prompts).'
+echo 'Inherited commands run without sandboxing. Other chats keep their existing permissions.'
 echo 'Why /inherit over --continue: a fresh conversation reads saved history on demand.'
 echo '--continue forks the saved conversation; copied history can still hit a turn limit.'
 echo 'If the old chat is closed: xingchi-codex /inherit (Astra: xingchi-codex --astra /inherit).'

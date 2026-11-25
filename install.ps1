@@ -68,6 +68,9 @@ if ($Help) {
     Write-Host '  2. Type /inherit and press Enter to open the session list.'
     Write-Host '  3. Use Up/Down or Page Up/Down; type a title or ID to filter. Esc cancels.'
     Write-Host '  4. Press Enter on a session; a fresh chat automatically reads saved history and continues the work.'
+    Write-Host '/inherit automatically uses Full access and approval policy never (no command approval prompts).'
+    Write-Host 'Inherited commands run without sandboxing. Other chats keep their existing permissions.'
+    Write-Host "Runtime files are also refreshed in $(Join-Path $XDir 'bin')."
     Write-Host 'Why /inherit over --continue: a fresh conversation reads saved history on demand.'
     Write-Host '--continue forks the saved conversation; copied history can still hit a turn limit.'
     Write-Host 'If the old chat is closed: xingchi-codex /inherit (Astra: xingchi-codex --astra /inherit).'
@@ -279,6 +282,16 @@ echo Astra model: xingchi-codex --astra -m gpt-6-astra
 $statusCmd = $statusCmd.Replace('__BASE_URL__', $BaseUrl).Replace('__KEY_FILE__', $KeyFile).Replace('__ASTRA_KEY_FILE__', $AstraKeyFile).Replace('__CODEX_DIR__', $CodexDir).Replace('__SHARED_SKILLS__', $SharedSkills)
 [IO.File]::WriteAllText((Join-Path $Bin 'xingchi.cmd'), $statusCmd.TrimEnd() + "`r`n")
 
+# Refresh the complete runtime in XINGCHI_HOME too, not just the PATH directory.
+$RuntimeBin = Join-Path $XDir 'bin'
+if ([IO.Path]::GetFullPath($RuntimeBin).TrimEnd([char[]]'\/') -ne [IO.Path]::GetFullPath($Bin).TrimEnd([char[]]'\/')) {
+    New-Item -ItemType Directory -Path $RuntimeBin -Force | Out-Null
+    foreach ($runtime in @('xingchi-codex.cmd', 'xingchi.cmd', 'xingchi-codex-runner.py', 'xingchi_history.py', 'xingchi_tui.py', 'xingchi_conpty.py')) {
+        Copy-Item (Join-Path $Bin $runtime) (Join-Path $RuntimeBin $runtime) -Force
+    }
+}
+Write-Host "  runtime copy: $RuntimeBin"
+
 # Run the optional integration step last. The config above names
 # XINGCHI_API_KEY as the provider env key, so an old launcher left in place by
 # a later integration error makes Codex report a missing environment variable.
@@ -332,6 +345,8 @@ Write-Host '  1. Launch xingchi-codex in the same project directory.'
 Write-Host '  2. Type /inherit and press Enter to open the session list.'
 Write-Host '  3. Use Up/Down or Page Up/Down; type a title or ID to filter. Esc cancels.'
 Write-Host '  4. Press Enter on a session; a fresh chat automatically reads saved history and continues the work.'
+Write-Host '/inherit automatically uses Full access and approval policy never (no command approval prompts).'
+Write-Host 'Inherited commands run without sandboxing. Other chats keep their existing permissions.'
 Write-Host 'Why /inherit over --continue: a fresh conversation reads saved history on demand.'
 Write-Host '--continue forks the saved conversation; copied history can still hit a turn limit.'
 Write-Host 'If the old chat is closed: xingchi-codex /inherit (Astra: xingchi-codex --astra /inherit).'

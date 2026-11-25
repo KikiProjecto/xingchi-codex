@@ -151,8 +151,8 @@ def run_codex(args: list[str]) -> int:
         def fresh_command(id_: str, directory: Path) -> list[str]:
             with history_request() as request:
                 read_thread(request, id_, directory)
-            fresh_args = inherited_launch_args(id_, directory, Path(__file__).resolve())
-            return codex_command([*options, *fresh_args], model=initial_model, group=group)
+            fresh_args = inherited_launch_args(id_, directory, Path(__file__).resolve(), options)
+            return codex_command(fresh_args, model=initial_model, group=group)
 
         return run_tui(command, child_env, cwd, history_request, fresh_command)
     if os.name != "nt":

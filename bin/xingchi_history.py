@@ -190,8 +190,32 @@ def history_page(request, id_: str, cursor: str | None, view: str, turn: str | N
     return request("thread/turns/list", **params, limit=1, itemsView=view)
 
 
-def inherited_launch_args(id_: str, cwd: Path, runner: Path) -> list[str]:
-    """Build the fresh-chat arguments after a session has been selected."""
+def inherited_launch_args(id_: str, cwd: Path, runner: Path,
+                          options: list[str] | None = None) -> list[str]:
+    """Start inherited chats with full access and no command approval prompts."""
+    # A chat can have been launched with restricted permissions. Remove those
+    # CLI switches before adding the full-access switch (Clap rejects conflicts).
+    kept = []
+    previous = iter(options or [])
+    value_options = {"-c", "--config", "--enable", "--disable", "--remote",
+                     "--remote-auth-token-env", "-i", "--image", "-m", "--model",
+                     "--local-provider", "-p", "--profile", "-C", "--cd", "--add-dir"}
+    for arg in previous:
+        if arg in {"-s", "--sandbox", "-a", "--ask-for-approval"}:
+            next(previous, None)
+        elif arg in {"--full-auto", "--approve-for-me", "--not-so-yolo", "--yolo",
+                     "--dangerously-bypass-approvals-and-sandbox"}:
+            continue
+        elif arg.startswith(("--sandbox=", "--ask-for-approval=")):
+            continue
+        elif not arg.startswith("--") and arg.startswith(("-s", "-a")):
+            continue
+        else:
+            kept.append(arg)
+            if arg in value_options:
+                value = next(previous, None)
+                if value is not None:
+                    kept.append(value)
     mcp = {
         "command": sys.executable,
         "args": [str(runner), "--serve-inherited-history", id_],
@@ -200,7 +224,8 @@ def inherited_launch_args(id_: str, cwd: Path, runner: Path) -> list[str]:
         "enabled": True,
     }
     toml = ", ".join(f"{key} = {json.dumps(value, ensure_ascii=False)}" for key, value in mcp.items())
-    return ["-c", f"mcp_servers.xingchi_inherit={{{toml}}}", "--", inherit_prompt(id_)]
+    return [*kept, "--dangerously-bypass-approvals-and-sandbox",
+            "-c", f"mcp_servers.xingchi_inherit={{{toml}}}", "--", inherit_prompt(id_)]
 
 
 def serve_history(id_: str, app_server) -> None:

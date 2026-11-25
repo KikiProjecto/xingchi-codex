@@ -135,6 +135,11 @@ class InstallerSourceTests(unittest.TestCase):
         for name in ("xingchi_history.py", "xingchi_tui.py", "xingchi_conpty.py"):
             self.assertIn(f"Copy-Item (Join-Path $SelfDir 'bin\\{name}') "
                           f"(Join-Path $Bin '{name}') -Force", code)
+        self.assertIn("$RuntimeBin = Join-Path $XDir 'bin'", code)
+        self.assertIn('Copy-Item (Join-Path $Bin $runtime) (Join-Path $RuntimeBin $runtime) -Force', code)
+        for name in ('xingchi-codex.cmd', 'xingchi.cmd', 'xingchi-codex-runner.py',
+                     'xingchi_history.py', 'xingchi_tui.py', 'xingchi_conpty.py'):
+            self.assertIn("'" + name + "'", code)
 
 
 @unittest.skipUnless(POWERSHELL, "PowerShell is not installed")
@@ -326,6 +331,9 @@ class WindowsInstallTests(unittest.TestCase):
         for name in payloads:
             self.assertEqual((target / name).read_bytes(), (ROOT / "bin" / name).read_bytes(),
                              f"The installer left an outdated {name}")
+        for name in (*payloads, 'xingchi-codex.cmd', 'xingchi.cmd'):
+            self.assertEqual((self.home / '.xingchi/bin' / name).read_bytes(), (target / name).read_bytes(),
+                             f"The Xingchi runtime copy left an outdated {name}")
 
         self.assertIn('set "XINGCHI_UPSTREAM=%s"' % self.base_url, launcher)
         self.assertIn("upstream.key", runner)

@@ -305,6 +305,37 @@ select a model, and choose a reasoning level. Max and Ultra appear under
 level and any saved model that is still in the catalog.
 The installers check for Codex CLI 0.170.0 or newer and update older versions.
 
+### OpenBot's ChatGPT provider on Linux
+
+OpenBot can prefer its own managed Codex binary, bypassing `xingchi-codex`.
+With this repository's provider configuration, that can produce
+`Missing environment variable: XINGCHI_API_KEY` even though the Xingchi CLI
+works in your terminal. After installing Xingchi and OpenBot, run:
+
+```sh
+python3 scripts/setup-openbot.py          # preview the local changes
+python3 scripts/setup-openbot.py --apply  # install the OpenBot launchers
+```
+
+Quit and reopen OpenBot from its application-menu entry or
+`~/.local/bin/openbot`. The setup uses OpenBot's `OPENBOT_CODEX_PATH`
+override to route its ChatGPT provider through the installed Xingchi launcher.
+The key stays in `~/.xingchi/upstream.key` and is read when Codex starts;
+neither the desktop entry nor the OpenBot wrapper contains it.
+
+This OpenBot-specific launcher sets Codex defaults to `gpt-6.1-sol`,
+`sandbox_mode="danger-full-access"`, and `approval_policy="never"`.
+OpenBot sends its own settings for each agent, so also select **Full access**
+and **Always allow** for the ChatGPT agent and choose `gpt-6.1-sol` there.
+Other uses of `xingchi-codex` retain their existing permissions and model choices.
+OpenBot and Codex both read `~/.agents/skills`; changes to that shared library
+are available to both without a separate copy or synchronization job.
+
+The command preserves custom desktop fields, backs up an existing desktop
+entry before its first change, and refuses to overwrite an unrelated command
+at `~/.local/bin/openbot`. An already-running OpenBot process needs a restart
+to read the launcher override.
+
 ### Continue saved work with `/inherit` (recommended for session limits)
 
 Use `/inherit` when a conversation reaches `session_turn_limit_exceeded` or
@@ -321,6 +352,14 @@ hits the same error again.
 4. Press Enter on the session you want. The launcher starts a fresh chat and
    automatically prompts it to read the selected history and continue unfinished
    work. You do not need to paste a continuation prompt yourself.
+
+Inherited chats automatically use **Full access** with approval policy **never**.
+This applies to both the in-chat picker and `xingchi-codex /inherit`, even when
+the original chat used restricted permissions. Commands in the new chat run
+without sandboxing or command approval prompts; no `/permissions` step is needed.
+Both installers refresh the launcher and all its helpers in the PATH directory
+and keep a matching runtime copy under `~/.xingchi/bin` (`XINGCHI_HOME/bin` when
+customized). Ordinary, non-inherited chats retain their existing permissions.
 
 If the old chat is already closed, run `xingchi-codex /inherit` from that
 project directory to open the picker directly. For Astra, run
